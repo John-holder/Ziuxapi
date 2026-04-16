@@ -1,130 +1,266 @@
-l='course_id is required'
-k='course_id'
-j='ip is required'
-i='session_token'
-h='Authorization'
-g='authentication'
-f=SystemExit
-e=print
-X=True
-W='HS256'
-V='Restricted'
-U='Session exists'
-T=None
-R='Canvas request failed'
-Q='error'
-P='Authentication'
-O=str
-H='Unauthorized'
-G='ip'
-C=False
-B='result'
-import os as I,secrets as m,requests as J,datetime as S
-from flask import Flask,request as D,jsonify as A
-from dotenv import load_dotenv as n
-from werkzeug.middleware.proxy_fix import ProxyFix as o
-import jwt as F
-try:from jwt import PyJWT
-except ImportError:e('Ziux cannot continue with wrong library. Please check to see if you are have PyJWT installed!');raise f(1)
-p='v2.2.1=development'
-n()
-q=I.environ.get('ZIUX_AUTH_MODS','')
-Y=[A.strip()for A in q.split(',')if A.strip()]
-Z=I.environ.get('ZIUX_PASSWORD_HASH')
-K=I.environ.get('JWT_SECRET')
-a=I.environ.get('CANVAS_API_KEY')
-b=I.environ.get('CANVAS_BASE_URL')
-if not all([Z,a,b,Y,K]):e('Ziux cannot continue with missing environment variables!');raise f(1)
-class r:
-	def __init__(A):A._jwtsessions={};A._blacklistedips=set()
-	def new_session(A,ip):
-		if A.check_existing_session(ip):return T,U
-		if ip in A._blacklistedips:return T,V
-		B=m.token_hex(16);C={G:ip,g:B,'exp':S.datetime.utcnow()+S.timedelta(hours=10),'iat':S.datetime.utcnow()};D=F.encode(C,K,algorithm=W);A._jwtsessions[ip]=B;return D,'Created'
-	def check_existing_session(A,ip):return ip in A._jwtsessions and A._jwtsessions[ip]is not T
-	def remove_session(A,ip,blacklist_ip=C):
-		if blacklist_ip:A._blacklistedips.add(ip)
-		if ip in A._jwtsessions:del A._jwtsessions[ip]
-	def verify_session(A,ip,session):
-		if ip in A._blacklistedips:return C
-		B=A._jwtsessions.get(ip)
-		if not B:return C
-		try:D=F.decode(session,K,algorithms=[W])
-		except F.ExpiredSignatureError:return C
-		except F.InvalidTokenError:return C
-		if D.get(G)!=ip:return C
-		if D.get(g)!=B:return C
-		return X
-E=Flask(__name__)
-E.wsgi_app=o(E.wsgi_app,x_for=1,x_proto=1,x_host=1)
-L=r()
-s={h:f"Bearer {a}"}
-def M(path):B=f"{b}{path}";A=J.get(B,headers=s,timeout=(3.05,10));A.raise_for_status();return A.json()
-def c(token):
-	try:A=F.decode(token,K,algorithms=[W]);return A.get(P)==Z
-	except F.ExpiredSignatureError:return C
-	except F.InvalidTokenError:return C
-def N():
-	B=D.remote_addr;A=D.headers.get(h)
-	if not A:return C
-	if A.startswith('Bearer '):A=A.split(' ',1)[1].strip()
-	return L.verify_session(B,A)
-@E.get('/')
-def u():return A({B:f"Welcome to Ziux API. Running on {p}."})
-def t():
-	C=D.headers.get(P);F=D.remote_addr
-	if not C:return A({B:'Missing Authentication header'}),400
-	if not c(C):return A({B:'Invalid client token'}),401
-	G,E=L.new_session(F)
-	if E==V:return A({B:'IP restricted'}),403
-	if E==U:return A({B:'Session already exists'}),409
-	return A({B:'Authenticated',i:G})
-def d(remote_addr,admin_token):
-	A=admin_token
-	if remote_addr not in Y:return C
-	if not A:return C
-	return c(A)
-@E.get('/a/generate/userkey')
-def v():
-	F=D.remote_addr;I=D.headers.get(P)
-	if not d(F,I):return A({B:H}),401
-	C=D.args.get(G)
-	if not C:return A({B:j}),400
-	J,E=L.new_session(C)
-	if E==V:return A({B:'Target IP is restricted'}),403
-	if E==U:return A({B:'Target IP already has a session'}),409
-	return A({B:'User session created',G:C,i:J})
-@E.post('/a/security/reset')
-def w():
-	J=D.remote_addr;K=D.headers.get(P)
-	if not d(J,K):return A({B:H}),401
-	F=D.get_json(silent=X)or{};E=F.get(G);I=bool(F.get('blacklist_ip',C))
-	if not E:return A({B:j}),400
-	L.remove_session(E,blacklist_ip=I);return A({B:'Security session reset',G:E,'blacklisted':I})
-@E.get('/authenticate/link/client')
-def x():return t()
-@E.get('/edu/get/me')
-def y():
-	if not N():return A({B:H}),401
-	try:return A(M('/users/self'))
-	except J.RequestException as C:return A({B:R,Q:O(C)}),502
-@E.get('/edu/get/courses')
-def z():
-	if not N():return A({B:H}),401
-	try:return A(M('/courses'))
-	except J.RequestException as C:return A({B:R,Q:O(C)}),502
-@E.get('/edu/get/assignments')
-def A0():
-	if not N():return A({B:H}),401
-	C=D.args.get(k)
-	if not C:return A({B:l}),400
-	try:return A(M(f"/courses/{C}/assignments"))
-	except J.RequestException as E:return A({B:R,Q:O(E)}),502
-@E.get('/edu/get/quizzes')
-def A1():
-	if not N():return A({B:H}),401
-	C=D.args.get(k)
-	if not C:return A({B:l}),400
-	try:return A(M(f"/courses/{C}/quizzes"))
-	except J.RequestException as E:return A({B:R,Q:O(E)}),502
-if __name__=='__main__':E.run(host='0.0.0.0',port=8000,debug=X)
+import os
+import secrets
+import requests
+import datetime
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix
+import jwt
+try:
+    from jwt import PyJWT
+except ImportError:
+    print("Ziux cannot continue with wrong library. Please check to see if you are have PyJWT installed!")
+    raise SystemExit(1)
+
+VERSION = "v2.2.1=development"
+
+load_dotenv()
+
+raw_admins = os.environ.get("ZIUX_AUTH_MODS", "")
+WHITELIST_ADMINS = [ip.strip() for ip in raw_admins.split(",") if ip.strip()]
+
+PASSWORD_HASH = os.environ.get("ZIUX_PASSWORD_HASH")
+JWT_SECRET = os.environ.get("JWT_SECRET")
+CANVAS_API_KEY = os.environ.get("CANVAS_API_KEY")
+CANVAS_BASE_URL = os.environ.get("CANVAS_BASE_URL")
+
+if not all([PASSWORD_HASH, CANVAS_API_KEY, CANVAS_BASE_URL, WHITELIST_ADMINS, JWT_SECRET]):
+    print("Ziux cannot continue with missing environment variables!")
+    raise SystemExit(1)
+
+class SecuritySession:
+    def __init__(self):
+        self._jwtsessions = {}
+        self._blacklistedips = set()
+
+    def new_session(self, ip):
+        if self.check_existing_session(ip):
+            return None, "Session exists"
+
+        if ip in self._blacklistedips:
+            return None, "Restricted"
+
+        session_hash = secrets.token_hex(16)
+
+        payload = {
+            "ip": ip,
+            "authentication": session_hash,
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=10),
+            "iat": datetime.datetime.utcnow()
+        }
+
+        token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+        self._jwtsessions[ip] = session_hash
+        return token, "Created"
+
+    def check_existing_session(self, ip):
+        return ip in self._jwtsessions and self._jwtsessions[ip] is not None
+
+    def remove_session(self, ip, blacklist_ip=False):
+        if blacklist_ip:
+            self._blacklistedips.add(ip)
+
+        if ip in self._jwtsessions:
+            del self._jwtsessions[ip]
+
+    def verify_session(self, ip, session):
+        if ip in self._blacklistedips:
+            return False
+
+        owner_hash = self._jwtsessions.get(ip)
+        if not owner_hash:
+            return False
+
+        try:
+            decoded = jwt.decode(session, JWT_SECRET, algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            return False
+        except jwt.InvalidTokenError:
+            return False
+
+        if decoded.get("ip") != ip:
+            return False
+
+        if decoded.get("authentication") != owner_hash:
+            return False
+
+        return True
+
+
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+security = SecuritySession()
+
+CANVAS_HEADERS = {
+    "Authorization": f"Bearer {CANVAS_API_KEY}"
+}
+
+def get_canvas(path: str):
+    url = f"{CANVAS_BASE_URL}{path}"
+    response = requests.get(url, headers=CANVAS_HEADERS, timeout=(3.05, 10))
+    response.raise_for_status()
+    return response.json()
+
+
+def verifyJWT(token):
+    try:
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return decoded.get("Authentication") == PASSWORD_HASH
+    except jwt.ExpiredSignatureError:
+        return False
+    except jwt.InvalidTokenError:
+        return False
+
+def require_auth():
+    request_ip = request.remote_addr
+    session_token = request.headers.get("Authorization")
+
+    if not session_token:
+        return False
+
+    if session_token.startswith("Bearer "):
+        session_token = session_token.split(" ", 1)[1].strip()
+
+    return security.verify_session(request_ip, session_token)
+
+@app.get("/")
+def index():
+    return jsonify({
+        "result": f"Welcome to Ziux API. Running on {VERSION}."
+    })
+
+def authenticate():
+    client_token = request.headers.get("Authentication")
+    request_ip = request.remote_addr
+
+    if not client_token:
+        return jsonify({"result": "Missing Authentication header"}), 400
+
+    if not verifyJWT(client_token):
+        return jsonify({"result": "Invalid client token"}), 401
+
+    session_token, status = security.new_session(request_ip)
+
+    if status == "Restricted":
+        return jsonify({"result": "IP restricted"}), 403
+
+    if status == "Session exists":
+        return jsonify({"result": "Session already exists"}), 409
+
+    return jsonify({
+        "result": "Authenticated",
+        "session_token": session_token
+    })
+
+def authenticate_admin(remote_addr, admin_token):
+    if remote_addr not in WHITELIST_ADMINS:
+        return False
+
+    if not admin_token:
+        return False
+
+    return verifyJWT(admin_token)
+
+@app.get("/a/generate/userkey")
+def userkey():
+    request_ip = request.remote_addr
+    admin_token = request.headers.get("Authentication")
+
+    if not authenticate_admin(request_ip, admin_token):
+        return jsonify({"result": "Unauthorized"}), 401
+
+    user_ip = request.args.get("ip")
+    if not user_ip:
+        return jsonify({"result": "ip is required"}), 400
+
+    session_token, status = security.new_session(user_ip)
+
+    if status == "Restricted":
+        return jsonify({"result": "Target IP is restricted"}), 403
+    if status == "Session exists":
+        return jsonify({"result": "Target IP already has a session"}), 409
+
+    return jsonify({
+        "result": "User session created",
+        "ip": user_ip,
+        "session_token": session_token
+    })
+
+@app.post("/a/security/reset")
+def removeuserkey():
+    request_ip = request.remote_addr
+    admin_token = request.headers.get("Authentication")
+
+    if not authenticate_admin(request_ip, admin_token):
+        return jsonify({"result": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    target_ip = data.get("ip")
+    blacklist_ip = bool(data.get("blacklist_ip", False))
+
+    if not target_ip:
+        return jsonify({"result": "ip is required"}), 400
+
+    security.remove_session(target_ip, blacklist_ip=blacklist_ip)
+
+    return jsonify({
+        "result": "Security session reset",
+        "ip": target_ip,
+        "blacklisted": blacklist_ip
+    })
+
+@app.get("/authenticate/link/client")
+def authenticate_client():
+    return authenticate()
+
+@app.get("/edu/get/me")
+def get_me():
+    if not require_auth():
+        return jsonify({"result": "Unauthorized"}), 401
+
+    try:
+        return jsonify(get_canvas("/users/self"))
+    except requests.RequestException as e:
+        return jsonify({"result": "Canvas request failed", "error": str(e)}), 502
+
+@app.get("/edu/get/courses")
+def get_courses():
+    if not require_auth():
+        return jsonify({"result": "Unauthorized"}), 401
+
+    try:
+        return jsonify(get_canvas("/courses"))
+    except requests.RequestException as e:
+        return jsonify({"result": "Canvas request failed", "error": str(e)}), 502
+
+@app.get("/edu/get/assignments")
+def get_assignments():
+    if not require_auth():
+        return jsonify({"result": "Unauthorized"}), 401
+
+    course_id = request.args.get("course_id")
+    if not course_id:
+        return jsonify({"result": "course_id is required"}), 400
+
+    try:
+        return jsonify(get_canvas(f"/courses/{course_id}/assignments"))
+    except requests.RequestException as e:
+        return jsonify({"result": "Canvas request failed", "error": str(e)}), 502
+
+@app.get("/edu/get/quizzes")
+def get_quizzes():
+    if not require_auth():
+        return jsonify({"result": "Unauthorized"}), 401
+
+    course_id = request.args.get("course_id")
+    if not course_id:
+        return jsonify({"result": "course_id is required"}), 400
+
+    try:
+        return jsonify(get_canvas(f"/courses/{course_id}/quizzes"))
+    except requests.RequestException as e:
+        return jsonify({"result": "Canvas request failed", "error": str(e)}), 502
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000, debug=True)
