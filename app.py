@@ -5,20 +5,16 @@ import datetime
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
+from .runner import __version__
 import jwt
 try:
     from jwt import PyJWT
 except ImportError:
-    print("Ziux cannot continue with wrong library. Please check to see if you are have PyJWT installed!")
     raise SystemExit(1)
 
-VERSION = "v2.2.1=development"
-
 load_dotenv()
-
 raw_admins = os.environ.get("ZIUX_AUTH_MODS", "")
 WHITELIST_ADMINS = [ip.strip() for ip in raw_admins.split(",") if ip.strip()]
-
 PASSWORD_HASH = os.environ.get("ZIUX_PASSWORD_HASH")
 JWT_SECRET = os.environ.get("JWT_SECRET")
 CANVAS_API_KEY = os.environ.get("CANVAS_API_KEY")
@@ -119,6 +115,7 @@ def require_auth():
     if not session_token:
         return False
 
+    # Support "Bearer <token>" or raw token
     if session_token.startswith("Bearer "):
         session_token = session_token.split(" ", 1)[1].strip()
 
@@ -127,7 +124,7 @@ def require_auth():
 @app.get("/")
 def index():
     return jsonify({
-        "result": f"Welcome to Ziux API. Running on {VERSION}."
+        "result": f"Welcome to Ziux API. Running on {__version__}."
     })
 
 def authenticate():
@@ -187,7 +184,7 @@ def userkey():
         "session_token": session_token
     })
 
-@app.post("/a/security/reset")
+@app.post("/a/revoke/userkey")
 def removeuserkey():
     request_ip = request.remote_addr
     admin_token = request.headers.get("Authentication")
