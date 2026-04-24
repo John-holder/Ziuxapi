@@ -1,4 +1,4 @@
-__version__ = "v2.3.2=beta"
+__version__ = "v2.3.3=beta"
 
 if __name__ == "__main__":
     print("Runner online.")
@@ -167,7 +167,7 @@ if __name__ == "__main__":
                 "stderr": "nginx is not installed or not in PATH.",
             }
 
-        return run_cmd([nginx_bin])
+        return run_cmd(["sudo", nginx_bin])
 
     load_dotenv()
 
@@ -217,7 +217,7 @@ Ziux. 2026
     if not nginx_bin:
         print("[-] nginx not found in PATH.")
     else:
-        nginx_test = run_cmd([nginx_bin, "-t"], check=False)
+        nginx_test = run_cmd(["sudo", nginx_bin, "-t"], check=False)
         print_result("nginx -t", nginx_test)
 
         if not nginx_test["ok"]:
