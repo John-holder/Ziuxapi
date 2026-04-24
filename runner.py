@@ -1,8 +1,7 @@
-__version__ = "v2.3.1=development"
+__version__ = "v2.3.2=beta"
 
 if __name__ == "__main__":
     print("Runner online.")
-
     import os
     import shlex
     import shutil
@@ -106,7 +105,6 @@ if __name__ == "__main__":
         gunicorn_app = os.getenv("ZIUX_GUNICORN_APP", "app:app")
         gunicorn_bind = os.getenv("ZIUX_GUNICORN_BIND", "127.0.0.1:8000")
         gunicorn_workers = os.getenv("ZIUX_GUNICORN_WORKERS", "2")
-        gunicorn_extra = os.getenv("ZIUX_GUNICORN_EXTRA", "")
         gunicorn_conf = os.getenv("ZIUX_GUNICORN_CONF", "").strip()
 
         host, port = gunicorn_bind.split(":")
@@ -134,9 +132,6 @@ if __name__ == "__main__":
                     "stdout": "",
                     "stderr": f"Specified gunicorn config does not exist: {gunicorn_conf}",
                 }
-
-        if gunicorn_extra:
-            cmd.extend(shlex.split(gunicorn_extra))
 
         cmd.append(gunicorn_app)
 
